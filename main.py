@@ -7,7 +7,7 @@ import time
 import threading
 from src.ui.cyber_effects import CyberEffect
 from src.ui.console_ui import NetScanConsole
-from src.core.scanners.network_discovery import NetworkDiscovery
+from src.core.scanners.network_discovery import NetworkScanner
 
 def check_root():
     """Check if the script is run with root/admin privileges"""
@@ -83,7 +83,7 @@ def main():
     
     # Initialize scanner and console
     try:
-        scanner = NetworkDiscovery(cyber_fx)
+        scanner = NetworkScanner()
         console.inject_scanner(scanner)
         
         # Start console

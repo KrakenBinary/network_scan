@@ -23,7 +23,7 @@ from .cyber_effects import CyberEffect, NEON_GREEN, CYAN_BLUE, RESET
 # Define available commands
 AVAILABLE_COMMANDS = [
     'help', 'scan', 'devices', 'interfaces', 'scan_ports', 'info', 'target', 
-    'export', 'clear', 'exit', 'matrix', 'about'
+    'export', 'clear', 'exit', 'about'
 ]
 
 class NetScanConsole:
@@ -104,8 +104,6 @@ class NetScanConsole:
                 self._show_current_target()
         elif cmd == 'export':
             self._export_data(args[0] if args else None)
-        elif cmd == 'matrix':
-            self.cyber_fx.matrix_rain(duration=5, density=0.3)
         elif cmd == 'about':
             self._show_about()
         else:
@@ -118,7 +116,7 @@ class NetScanConsole:
     
     def _show_welcome(self):
         """Display welcome message and banner"""
-        self.cyber_fx.display_banner("NetScan", font="poison")
+        self._display_banner()
         
         welcome_text = """
 ╔═══════════════════════════════════════════════════════════════════════╗
@@ -148,7 +146,6 @@ class NetScanConsole:
         help_table.add_row("info", "Show detailed info for a device", "info <IP>")
         help_table.add_row("export", "Export scan results", "export [filename]")
         help_table.add_row("clear", "Clear the screen", "clear")
-        help_table.add_row("matrix", "Display Matrix digital rain", "matrix")
         help_table.add_row("about", "Display about information", "about")
         help_table.add_row("exit", "Exit the program", "exit")
         
@@ -387,6 +384,23 @@ class NetScanConsole:
         """
         self.cyber_fx.type_text(about_text, speed=0.001, color=NEON_GREEN)
         
+    def _display_banner(self):
+        """Display application banner"""
+        # More elaborate ASCII/ANSI art for NetScan
+        netscan_logo = """
+[bright_green]███╗   ██╗███████╗████████╗███████╗ ██████╗ █████╗ ███╗   ██╗
+████╗  ██║██╔════╝╚══██╔══╝██╔════╝██╔════╝██╔══██╗████╗  ██║
+██╔██╗ ██║█████╗     ██║   ███████╗██║     ███████║██╔██╗ ██║
+██║╚██╗██║██╔══╝     ██║   ╚════██║██║     ██╔══██║██║╚██╗██║
+██║ ╚████║███████╗   ██║   ███████║╚██████╗██║  ██║██║ ╚████║
+╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝[/bright_green]
+                                                          
+[bright_cyan]╔══════════════════════════════════════════════════════╗
+║  [bright_green]Network Reconnaissance & Security Analysis Tool v1.0[/bright_green]  ║
+╚══════════════════════════════════════════════════════╝[/bright_cyan]
+"""
+        self.console.print(netscan_logo)
+    
     def inject_scanner(self, scanner):
         """Inject the network scanner instance"""
         self.scanner = scanner

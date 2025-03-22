@@ -4,30 +4,27 @@
 import sys
 import time
 import random
+from art import text2art
 from yaspin import yaspin
 from yaspin.spinners import Spinners
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from rich.progress import TaskProgressColumn, TimeRemainingColumn
 from rich.console import Console
-from rich.progress import (
-    Progress,
-    TextColumn,
-    BarColumn,
-    TaskProgressColumn,
-    TimeRemainingColumn,
-    SpinnerColumn
-)
 from rich.text import Text
-from art import text2art
 from colorama import Fore, Back, Style, init
 
 # Initialize colorama
 init(autoreset=True)
 
-# Custom neon green colors
+# ANSI colors
 NEON_GREEN = "\033[38;2;0;255;0m"
 BRIGHT_GREEN = "\033[38;2;50;255;50m"
 CYAN_BLUE = "\033[38;2;0;255;255m"
 TERMINAL_GREEN = "\033[32m"
 RESET = "\033[0m"
+
+# Cyberpunk characters and symbols
+CYBER_CHARS = "!@#$%^&*()_+-=[]\\{}|;':\",./<>?`~"
 
 class CyberEffect:
     """Class for creating cyberpunk/hacker-style terminal effects"""
@@ -141,42 +138,3 @@ class CyberEffect:
             time.sleep(0.2)
         
         print(f"{NEON_GREEN}[+] Connection to {CYAN_BLUE}{target}{NEON_GREEN} established!{RESET}")
-    
-    @staticmethod
-    def matrix_rain(duration=3, density=0.2):
-        """Create a brief matrix-style digital rain effect"""
-        try:
-            import shutil
-            columns, rows = shutil.get_terminal_size()
-            
-            # Initialize the terminal with blank spaces
-            matrix = [" " for _ in range(columns)]
-            
-            start_time = time.time()
-            while time.time() - start_time < duration:
-                # Update matrix rain
-                for i in range(columns):
-                    if matrix[i] == " ":
-                        # Start a new drop at random
-                        if random.random() < density * 0.1:
-                            matrix[i] = random.choice("01")
-                    else:
-                        # Continue or end existing drop
-                        if random.random() < 0.3:
-                            matrix[i] = " "
-                        else:
-                            matrix[i] = random.choice("01")
-                
-                # Print the current state
-                matrix_line = "".join(matrix)
-                sys.stdout.write("\r" + NEON_GREEN + matrix_line + RESET)
-                sys.stdout.flush()
-                time.sleep(0.05)
-            
-            # Clear the line
-            sys.stdout.write("\r" + " " * columns + "\r")
-            sys.stdout.flush()
-            
-        except Exception:
-            # Fallback if terminal size detection fails
-            pass

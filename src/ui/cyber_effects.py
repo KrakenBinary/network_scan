@@ -95,8 +95,8 @@ class CyberEffect:
         """Create a cyberpunk-style progress bar"""
         progress = Progress(
             SpinnerColumn(spinner_name="dots"),
-            TextColumn(f"[{BRIGHT_GREEN}]{task_description}"),
-            BarColumn(bar_width=40, style=BRIGHT_GREEN, complete_style=NEON_GREEN),
+            TextColumn(f"[bright_green]{task_description}"),
+            BarColumn(bar_width=40, style="bright_green", complete_style="green"),
             TaskProgressColumn(),
             TimeRemainingColumn(),
             console=self.console

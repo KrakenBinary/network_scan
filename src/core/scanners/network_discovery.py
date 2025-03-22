@@ -84,7 +84,7 @@ class NetworkScanner:
             # Create task for progress bar if provided
             task_id = None
             if progress:
-                task_id = progress.add_task(f"Scanning {target_range}", total=target_network.num_addresses)
+                task_id = progress.add_task(f"[bright_green]Scanning {target_range}", total=target_network.num_addresses)
             
             # Create ARP request packet
             arp = ARP(pdst=target_range)
@@ -109,7 +109,7 @@ class NetworkScanner:
                 # Update progress
                 if progress and task_id is not None:
                     completed += 1
-                    progress.update(task_id, advance=1, description=f"Found {completed} devices")
+                    progress.update(task_id, advance=1, description=f"[bright_green]Found {completed} devices")
             
             # Complete the progress bar
             if progress and task_id is not None:
@@ -187,7 +187,7 @@ class NetworkScanner:
             
             with self.cyber_fx.cyber_progress() as progress:
                 # Create task for overall progress
-                main_task = progress.add_task("Scanning all networks", total=len(self.local_interfaces))
+                main_task = progress.add_task("[bright_green]Scanning all networks", total=len(self.local_interfaces))
                 
                 for interface in self.local_interfaces:
                     if 'range' in interface:

@@ -10,6 +10,9 @@ from scapy.all import ARP, Ether, srp
 import nmap
 from mac_vendor_lookup import MacLookup
 from netaddr import EUI, NotRegisteredError
+import datetime
+import json
+import platform
 
 from ...ui.cyber_effects import CyberEffect
 
@@ -22,6 +25,7 @@ class NetworkScanner:
         self.discovered_devices = []
         self.local_interfaces = []
         self._lock = threading.Lock()
+        self.port_scan_results = {}
     
     def get_local_interfaces(self):
         """Get all available network interfaces"""
@@ -180,6 +184,7 @@ class NetworkScanner:
                     }
                     open_ports.append(service_info)
             
+            self.port_scan_results[ip_address] = open_ports
             return open_ports
             
         except Exception as e:
@@ -222,3 +227,60 @@ class NetworkScanner:
     def get_scan_results(self):
         """Return all discovered devices"""
         return self.discovered_devices
+
+    def export_data_to_json(self, filename=None):
+        """
+        Export all collected data to a structured JSON file
+        Returns the path to the saved file
+        """
+        if not filename:
+            # Create filename with timestamp if not provided
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"netscan_results_{timestamp}.json"
+            
+        # Ensure the filename has .json extension
+        if not filename.endswith('.json'):
+            filename += '.json'
+            
+        # Create structured data dictionary
+        export_data = {
+            "scan_info": {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "scanner_version": "1.0.0",
+                "scan_duration": self.last_scan_duration if hasattr(self, 'last_scan_duration') else None,
+            },
+            "local_system": {
+                "interfaces": self.local_interfaces,
+                "hostname": socket.gethostname(),
+                "platform": platform.platform(),
+            },
+            "network": {
+                "devices": self.discovered_devices,
+                "device_count": len(self.discovered_devices),
+                "port_scan_results": self.port_scan_results if hasattr(self, 'port_scan_results') else {},
+            }
+        }
+        
+        # Add advanced metadata for each device
+        for device in export_data["network"]["devices"]:
+            # Add ports information if available
+            ip = device.get('ip')
+            if hasattr(self, 'port_scan_results') and ip in self.port_scan_results:
+                device['ports'] = self.port_scan_results[ip]
+                
+            # Add timestamps
+            device['first_seen'] = datetime.datetime.now().isoformat()
+            device['last_seen'] = datetime.datetime.now().isoformat()
+            
+            # Add risk assessment (placeholder for future enhancement)
+            device['risk_score'] = 0
+            device['notable_services'] = []
+        
+        # Save to file
+        try:
+            with open(filename, 'w') as f:
+                json.dump(export_data, f, indent=4)
+            return filename
+        except Exception as e:
+            print(f"Error exporting data: {str(e)}")
+            return None

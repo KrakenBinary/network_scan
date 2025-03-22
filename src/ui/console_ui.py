@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.syntax import Syntax
 from rich.panel import Panel
 from rich.box import DOUBLE, HEAVY
+from datetime import datetime
 
 from .cyber_effects import CyberEffect, NEON_GREEN, CYAN_BLUE, RESET
 
@@ -102,7 +103,7 @@ class NetScanConsole:
             else:
                 self._show_current_target()
         elif cmd == 'export':
-            self._export_results(args[0] if args else None)
+            self._export_data(args[0] if args else None)
         elif cmd == 'matrix':
             self.cyber_fx.matrix_rain(duration=5, density=0.3)
         elif cmd == 'about':
@@ -337,30 +338,35 @@ class NetScanConsole:
             self.cyber_fx.type_text("No target network set. Use 'target <network/CIDR>' to set one.", 
                                    color=NEON_GREEN)
     
-    def _export_results(self, filename=None):
-        """Export scan results to a file"""
+    def _export_data(self, filename=None):
+        """Export scan data to a JSON file"""
         if not self.scanner:
             self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
             return
             
-        devices = self.scanner.get_scan_results()
-        
-        if not devices:
-            self.cyber_fx.type_text("No devices found. Run 'scan' first.", color=NEON_GREEN)
+        if not self.scanner.get_scan_results():
+            self.cyber_fx.type_text("No scan data to export. Run 'scan' first.", color=NEON_GREEN)
             return
         
-        from ..utils.export import export_to_file
+        self.cyber_fx.type_text("Exporting network data to JSON...", color=NEON_GREEN)
         
-        if not filename:
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            filename = f"netscan_results_{timestamp}.json"
-            
-        success = export_to_file(devices, filename)
+        # Call the export function
+        saved_file = self.scanner.export_data_to_json(filename)
         
-        if success:
-            self.cyber_fx.type_text(f"Results exported to: {filename}", color=NEON_GREEN)
+        if saved_file:
+            # Create a panel to show the export result
+            panel = Panel(
+                f"✓ Scan data exported successfully\n"
+                f"✓ File: {saved_file}\n"
+                f"✓ Devices: {len(self.scanner.get_scan_results())}\n"
+                f"✓ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                title="Export Complete",
+                border_style="green",
+                box=HEAVY
+            )
+            self.console.print(panel)
         else:
-            self.cyber_fx.type_text(f"Failed to export results!", color="\033[31m")
+            self.cyber_fx.type_text("Error exporting data. Check permissions and try again.", color="\033[31m")
     
     def _show_about(self):
         """Show information about the program"""

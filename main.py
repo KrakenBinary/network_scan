@@ -26,7 +26,7 @@ def main():
     cyber_fx = CyberEffect()
     
     # Create console for displaying banner
-    console = NetScanConsole(cyber_fx)
+    console = NetScanConsole()
     
     # Display banner using the new method
     console._display_banner()

@@ -72,7 +72,7 @@ class NetworkScanner:
             self.local_interfaces = interfaces
             return interfaces
     
-    def arp_scan(self, target_range, progress=None):
+    def arp_scan(self, target_range, progress=None, task_id=None):
         """
         Perform ARP scan on a target network range
         target_range: IP range in CIDR notation (e.g., '192.168.1.0/24')
@@ -81,10 +81,11 @@ class NetworkScanner:
             target_network = ipaddress.IPv4Network(target_range)
             devices = []
             
-            # Create task for progress bar if provided
-            task_id = None
-            if progress:
-                task_id = progress.add_task(f"[bright_green]Scanning {target_range}", total=target_network.num_addresses)
+            # Don't create a new task if we already have one
+            has_own_task = False
+            if progress and task_id is None:
+                task_id = progress.add_task(f"[bright_green]Scanning {target_range}", total=100)
+                has_own_task = True
             
             # Create ARP request packet
             arp = ARP(pdst=target_range)
@@ -97,10 +98,15 @@ class NetworkScanner:
             completed = 0
             for sent, received in result:
                 # Extract information from response
+                mac_addr = received.hwsrc
+                # Ensure MAC address is clean and properly formatted
+                if len(mac_addr) > 17:  # Standard MAC is 17 chars with colons
+                    mac_addr = ":".join([mac_addr[i:i+2] for i in range(0, 12, 2)])
+                
                 device = {
                     'ip': received.psrc,
-                    'mac': received.hwsrc,
-                    'vendor': self.get_mac_vendor(received.hwsrc),
+                    'mac': mac_addr,
+                    'vendor': self.get_mac_vendor(mac_addr),
                     'hostname': self.get_hostname(received.psrc),
                     'status': 'up'
                 }
@@ -109,11 +115,16 @@ class NetworkScanner:
                 # Update progress
                 if progress and task_id is not None:
                     completed += 1
-                    progress.update(task_id, advance=1, description=f"[bright_green]Found {completed} devices")
+                    if has_own_task:
+                        # If we created our own task, update based on completed devices
+                        progress.update(task_id, advance=1, description=f"[bright_green]Found {completed} devices")
+                    else:
+                        # If using parent task, just advance parent task
+                        progress.update(task_id, advance=1)
             
             # Complete the progress bar
-            if progress and task_id is not None:
-                progress.update(task_id, completed=target_network.num_addresses)
+            if progress and task_id is not None and has_own_task:
+                progress.update(task_id, completed=100)
             
             with self._lock:
                 self.discovered_devices.extend(devices)
@@ -121,7 +132,7 @@ class NetworkScanner:
             return devices
             
         except Exception as e:
-            print(f"Error during ARP scan: {e}")
+            print(f"Error scanning network {target_range}: {str(e)}")
             return []
     
     def get_mac_vendor(self, mac_address):
@@ -187,28 +198,24 @@ class NetworkScanner:
             
             all_devices = []
             
+            # Use a single progress bar for all networks
             with self.cyber_fx.cyber_progress() as progress:
-                # Create task for overall progress
-                main_task = progress.add_task("[bright_green]Scanning all networks", total=len(self.local_interfaces))
+                total_interfaces = len([iface for iface in self.local_interfaces if 'range' in iface])
+                main_task = progress.add_task("[bright_green]Scanning all networks", total=total_interfaces)
                 
                 for interface in self.local_interfaces:
                     if 'range' in interface:
-                        self.cyber_fx.type_text(f"Scanning network: {interface['range']}", 
-                                               speed=0.005, jitter=True)
-                        devices = self.arp_scan(interface['range'], progress)
+                        # Don't use progress.add_task in arp_scan, just pass the main task
+                        devices = self.arp_scan(interface['range'], progress, main_task)
                         all_devices.extend(devices)
-                        
-                    # Update main progress
-                    progress.update(main_task, advance=1)
             
             self.discovered_devices = all_devices
             return all_devices
         else:
             # Scan specific target range
             with self.cyber_fx.cyber_progress() as progress:
-                self.cyber_fx.type_text(f"Scanning network: {target_range}", 
-                                       speed=0.005, jitter=True)
-                devices = self.arp_scan(target_range, progress)
+                task = progress.add_task(f"[bright_green]Scanning {target_range}", total=100)
+                devices = self.arp_scan(target_range, progress, task)
             
             return devices
     

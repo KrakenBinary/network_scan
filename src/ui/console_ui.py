@@ -186,14 +186,14 @@ class NetScanConsole:
     
     def _run_scan(self, target=None):
         """Run the network scan in a separate thread"""
-        self.cyber_fx.type_text("Initializing scan module...", speed=0.01, color=NEON_GREEN)
+        print("Initializing scan module...")
         time.sleep(0.5)
         
         if target:
             self.cyber_fx.simulate_connection(target)
             devices = self.scanner.scan_network(target)
         else:
-            self.cyber_fx.type_text("Scanning all local networks...", color=NEON_GREEN)
+            print("Scanning all local networks...")
             devices = self.scanner.scan_network()
             
         # Show summary when done

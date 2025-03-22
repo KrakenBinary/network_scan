@@ -67,7 +67,7 @@ class CyberEffect:
             print()
     
     @staticmethod
-    def glitch_text(text, iterations=3, speed=0.1):
+    def glitch_text(text, iterations=3, speed=0.1, color=NEON_GREEN):
         """Create a glitching text effect"""
         glitch_chars = "!@#$%^&*()_+-=[]\\{}|;':\",./<>?`~"
         
@@ -79,12 +79,12 @@ class CyberEffect:
                 else:
                     glitched_text += char
             
-            sys.stdout.write("\r" + NEON_GREEN + glitched_text + RESET)
+            sys.stdout.write("\r" + color + glitched_text + RESET)
             sys.stdout.flush()
             time.sleep(speed)
         
         # Show final clean text
-        sys.stdout.write("\r" + NEON_GREEN + text + RESET + "\n")
+        sys.stdout.write("\r" + color + text + RESET + "\n")
         sys.stdout.flush()
     
     @staticmethod

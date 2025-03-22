@@ -7,7 +7,7 @@ import time
 import threading
 from src.ui.cyber_effects import CyberEffect
 from src.ui.console_ui import NetScanConsole
-from src.core.scanners.network_discovery import NetworkScanner
+from src.core.scanners.network_discovery import NetworkDiscovery
 
 def check_root():
     """Check if the script is run with root/admin privileges"""
@@ -25,10 +25,46 @@ def main():
     # Initialize the cyber effects
     cyber_fx = CyberEffect()
     
-    # Display boot sequence
-    cyber_fx.display_banner("NetScan", font="poison")
-    cyber_fx.type_text("Initializing network scanner...", speed=0.01, color="\033[38;2;0;255;0m")
-    time.sleep(0.5)
+    # Create console for displaying banner
+    console = NetScanConsole(cyber_fx)
+    
+    # Display banner using the new method
+    console._display_banner()
+    
+    print("Initializing network scanner...")
+    print("Loading modules with verbose output:")
+    
+    print("  - Loading Network Interface Scanner...")
+    time.sleep(0.3)
+    print("    [INFO] Detecting available network interfaces...")
+    time.sleep(0.2)
+    print("    [INFO] Configuring interface monitoring...")
+    time.sleep(0.2)
+    print("    [LOADED]")
+    
+    print("  - Loading ARP Discovery Module...")
+    time.sleep(0.3)
+    print("    [INFO] Setting up ARP packet crafting...")
+    time.sleep(0.2)
+    print("    [INFO] Configuring broadcast parameters...")
+    time.sleep(0.2)
+    print("    [LOADED]")
+    
+    print("  - Loading Port Scanner...")
+    time.sleep(0.2)
+    print("    [LOADED]")
+    
+    print("  - Loading Hostname Resolver...")
+    time.sleep(0.2)
+    print("    [LOADED]")
+    
+    print("  - Loading MAC Vendor Database...")
+    time.sleep(0.3)
+    print("    [INFO] Initializing vendor database...")
+    time.sleep(0.2)
+    print("    [INFO] Loading OUI prefixes...")
+    time.sleep(0.2)
+    print("    [LOADED]")
     
     # Check for root privileges
     if not check_root():
@@ -45,51 +81,20 @@ def main():
             cyber_fx.type_text("Exiting program.", color="\033[38;2;0;255;0m")
             sys.exit(0)
     
-    # Show boot sequence with more verbosity
-    cyber_fx.type_text("Loading modules with verbose output:", speed=0.01, color="\033[38;2;0;255;0m")
-    modules = [
-        "Network Interface Scanner", 
-        "ARP Discovery Module", 
-        "Port Scanner", 
-        "Hostname Resolver",
-        "MAC Vendor Database"
-    ]
-    
-    for module in modules:
-        cyber_fx.type_text(f"  - Loading {module}...", speed=0.005, color="\033[38;2;0;255;0m")
-        time.sleep(0.3)
-        # Add more verbosity to show what's happening
-        if module == "Network Interface Scanner":
-            cyber_fx.type_text("    [INFO] Detecting available network interfaces...", speed=0.001, color="\033[38;2;100;255;100m")
-            cyber_fx.type_text("    [INFO] Configuring interface monitoring...", speed=0.001, color="\033[38;2;100;255;100m")
-        elif module == "ARP Discovery Module":
-            cyber_fx.type_text("    [INFO] Setting up ARP packet crafting...", speed=0.001, color="\033[38;2;100;255;100m")
-            cyber_fx.type_text("    [INFO] Configuring broadcast parameters...", speed=0.001, color="\033[38;2;100;255;100m")
-        elif module == "MAC Vendor Database":
-            cyber_fx.type_text("    [INFO] Initializing vendor database...", speed=0.001, color="\033[38;2;100;255;100m") 
-            cyber_fx.type_text("    [INFO] Loading OUI prefixes...", speed=0.001, color="\033[38;2;100;255;100m")
-        cyber_fx.type_text("    [LOADED]", speed=0.001, color="\033[38;2;50;255;50m")
-    
-    # Brief matrix rain effect
-    cyber_fx.matrix_rain(duration=1.5, density=0.3)
-    
     # Initialize scanner and console
     try:
-        scanner = NetworkScanner()
-        console = NetScanConsole()
-        
-        # Inject scanner into console
+        scanner = NetworkDiscovery(cyber_fx)
         console.inject_scanner(scanner)
         
         # Start console
-        console.start()
+        console.run()
         
     except KeyboardInterrupt:
         cyber_fx.type_text("\nProgram terminated by user.", color="\033[38;2;0;255;0m")
     except Exception as e:
-        cyber_fx.type_text(f"\nAn error occurred: {e}", color="\033[31m")
+        print(f"\nAn error occurred: {e}")
     finally:
-        cyber_fx.type_text("Shutting down...", color="\033[38;2;0;255;0m")
+        print("Shutting down...")
         sys.exit(0)
 
 if __name__ == "__main__":

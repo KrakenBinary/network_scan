@@ -38,20 +38,31 @@ class CyberEffect:
     @staticmethod
     def type_text(text, speed=0.02, color=NEON_GREEN, jitter=False, newline=True):
         """Type text with a hacker-style animation"""
+        # For Rich console compatibility, use a simple approach without ANSI codes
+        if color == NEON_GREEN:
+            rich_color = "bright_green"
+        elif color == CYAN_BLUE:
+            rich_color = "cyan"
+        else:
+            rich_color = "green"  # Default fallback
+            
+        console = Console()
+        
         for char in text:
             if jitter and random.random() < 0.05:
                 # Simulate typing errors and corrections
                 typo = random.choice("qwertyuiopasdfghjklzxcvbnm")
-                sys.stdout.write(color + typo + "\b" + RESET)
+                console.print(typo, style=rich_color, end="")
                 sys.stdout.flush()
                 time.sleep(speed * 2)
+                console.print("\b", end="")
             
             # Randomize typing speed if jitter is enabled
             delay = speed
             if jitter:
                 delay = speed * random.uniform(0.5, 1.5)
                 
-            sys.stdout.write(color + char + RESET)
+            console.print(char, style=rich_color, end="")
             sys.stdout.flush()
             time.sleep(delay)
         

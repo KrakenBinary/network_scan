@@ -125,10 +125,12 @@ class NetworkScanner:
             return []
     
     def get_mac_vendor(self, mac_address):
-        """Get vendor information for a MAC address"""
+        """Get vendor from MAC address"""
         try:
-            return self.mac_lookup.lookup(mac_address)
-        except (NotRegisteredError, Exception):
+            # Use a synchronous approach instead of async
+            vendor = MacLookup().lookup(mac_address)
+            return vendor
+        except Exception:
             return "Unknown"
     
     def get_hostname(self, ip_address):

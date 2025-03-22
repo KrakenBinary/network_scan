@@ -53,13 +53,12 @@ class NetScanConsole:
     
     def start(self):
         """Start the interactive console"""
-        self._clear_screen()
         self._show_welcome()
         
         while self.running:
             try:
-                # Create prompt with ASCII styling
-                prompt_text = ANSI(f"{NEON_GREEN}╔══[NetScan]══[{CYAN_BLUE}root@krakenbinary{NEON_GREEN}]\n╚═══>{RESET} ")
+                # Create prompt with simpler style
+                prompt_text = ANSI(f"{NEON_GREEN}>> {RESET}")
                 command = self.session.prompt(prompt_text)
                 
                 # Process the command
@@ -113,8 +112,8 @@ class NetScanConsole:
             self.cyber_fx.type_text("Type 'help' for available commands", color=NEON_GREEN)
     
     def _clear_screen(self):
-        """Clear the terminal screen"""
-        os.system('cls' if os.name == 'nt' else 'clear')
+        """Print a separator instead of clearing the screen"""
+        print(f"\n{NEON_GREEN}{'=' * 80}{RESET}\n")
     
     def _show_welcome(self):
         """Display welcome message and banner"""

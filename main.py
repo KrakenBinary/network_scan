@@ -25,9 +25,6 @@ def main():
     # Initialize the cyber effects
     cyber_fx = CyberEffect()
     
-    # Clear screen
-    os.system('cls' if os.name == 'nt' else 'clear')
-    
     # Display boot sequence
     cyber_fx.display_banner("NetScan", font="poison")
     cyber_fx.type_text("Initializing network scanner...", speed=0.01, color="\033[38;2;0;255;0m")
@@ -48,8 +45,8 @@ def main():
             cyber_fx.type_text("Exiting program.", color="\033[38;2;0;255;0m")
             sys.exit(0)
     
-    # Simulate boot sequence
-    cyber_fx.type_text("Loading modules:", speed=0.01, color="\033[38;2;0;255;0m")
+    # Show boot sequence with more verbosity
+    cyber_fx.type_text("Loading modules with verbose output:", speed=0.01, color="\033[38;2;0;255;0m")
     modules = [
         "Network Interface Scanner", 
         "ARP Discovery Module", 
@@ -61,6 +58,16 @@ def main():
     for module in modules:
         cyber_fx.type_text(f"  - Loading {module}...", speed=0.005, color="\033[38;2;0;255;0m")
         time.sleep(0.3)
+        # Add more verbosity to show what's happening
+        if module == "Network Interface Scanner":
+            cyber_fx.type_text("    [INFO] Detecting available network interfaces...", speed=0.001, color="\033[38;2;100;255;100m")
+            cyber_fx.type_text("    [INFO] Configuring interface monitoring...", speed=0.001, color="\033[38;2;100;255;100m")
+        elif module == "ARP Discovery Module":
+            cyber_fx.type_text("    [INFO] Setting up ARP packet crafting...", speed=0.001, color="\033[38;2;100;255;100m")
+            cyber_fx.type_text("    [INFO] Configuring broadcast parameters...", speed=0.001, color="\033[38;2;100;255;100m")
+        elif module == "MAC Vendor Database":
+            cyber_fx.type_text("    [INFO] Initializing vendor database...", speed=0.001, color="\033[38;2;100;255;100m") 
+            cyber_fx.type_text("    [INFO] Loading OUI prefixes...", speed=0.001, color="\033[38;2;100;255;100m")
         cyber_fx.type_text("    [LOADED]", speed=0.001, color="\033[38;2;50;255;50m")
     
     # Brief matrix rain effect

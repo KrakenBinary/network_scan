@@ -132,11 +132,11 @@ class NetScanConsole:
     
     def _show_help(self):
         """Display help information"""
-        help_table = Table(title="Available Commands", box=HEAVY, style=NEON_GREEN)
+        help_table = Table(title="Available Commands", box=HEAVY)
         
-        help_table.add_column("Command", style=CYAN_BLUE)
-        help_table.add_column("Description", style=NEON_GREEN)
-        help_table.add_column("Usage", style=NEON_GREEN)
+        help_table.add_column("Command", style="cyan")
+        help_table.add_column("Description", style="green")
+        help_table.add_column("Usage", style="green")
         
         help_table.add_row("help", "Show this help information", "help")
         help_table.add_row("scan", "Scan the network for devices", "scan [network/CIDR]")
@@ -212,12 +212,12 @@ class NetScanConsole:
             self.cyber_fx.type_text("No devices found. Run 'scan' first.", color=NEON_GREEN)
             return
             
-        table = Table(title="Discovered Devices", box=DOUBLE, style=NEON_GREEN)
+        table = Table(title="Discovered Devices", box=DOUBLE)
         
-        table.add_column("IP Address", style=CYAN_BLUE)
-        table.add_column("Hostname", style=NEON_GREEN) 
-        table.add_column("MAC Address", style=NEON_GREEN)
-        table.add_column("Vendor", style=NEON_GREEN)
+        table.add_column("IP Address", style="cyan")
+        table.add_column("Hostname", style="green") 
+        table.add_column("MAC Address", style="green")
+        table.add_column("Vendor", style="green")
         
         for device in devices:
             table.add_row(
@@ -241,13 +241,13 @@ class NetScanConsole:
             self.cyber_fx.type_text("No network interfaces found.", color=NEON_GREEN)
             return
             
-        table = Table(title="Network Interfaces", box=DOUBLE, style=NEON_GREEN)
+        table = Table(title="Network Interfaces", box=DOUBLE)
         
-        table.add_column("Interface", style=CYAN_BLUE)
-        table.add_column("IP Address", style=NEON_GREEN)
-        table.add_column("Netmask", style=NEON_GREEN)
-        table.add_column("Network", style=NEON_GREEN)
-        table.add_column("MAC Address", style=NEON_GREEN)
+        table.add_column("Interface", style="cyan")
+        table.add_column("IP Address", style="green")
+        table.add_column("Netmask", style="green")
+        table.add_column("Network", style="green")
+        table.add_column("MAC Address", style="green")
         
         for iface in interfaces:
             table.add_row(
@@ -275,11 +275,11 @@ class NetScanConsole:
             self.cyber_fx.type_text(f"No open ports found on {ip}", color=NEON_GREEN)
             return
             
-        table = Table(title=f"Open Ports on {ip}", box=DOUBLE, style=NEON_GREEN)
+        table = Table(title=f"Open Ports on {ip}", box=DOUBLE)
         
-        table.add_column("Port", style=CYAN_BLUE)
-        table.add_column("Service", style=NEON_GREEN)
-        table.add_column("Version", style=NEON_GREEN)
+        table.add_column("Port", style="cyan")
+        table.add_column("Service", style="green")
+        table.add_column("Version", style="green")
         
         for port_info in ports_info:
             table.add_row(
@@ -311,7 +311,7 @@ class NetScanConsole:
             f"Vendor: {device.get('vendor', 'Unknown')}\n"
             f"Status: {device.get('status', 'Unknown')}",
             title=f"Device Information: {ip}",
-            border_style=NEON_GREEN,
+            border_style="green",
             box=HEAVY
         )
         

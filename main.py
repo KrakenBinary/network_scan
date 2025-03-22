@@ -87,7 +87,7 @@ def main():
         console.inject_scanner(scanner)
         
         # Start console
-        console.run()
+        console.start()
         
     except KeyboardInterrupt:
         cyber_fx.type_text("\nProgram terminated by user.", color="\033[38;2;0;255;0m")

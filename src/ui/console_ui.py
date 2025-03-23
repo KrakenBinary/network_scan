@@ -91,9 +91,9 @@ class NetScanConsole:
                 self.running = False
         
         # Show exit message
-        print("\nDisconnecting from the network...")
+        terminal.info("Disconnecting from the network...")
         time.sleep(0.5)
-        print("CONNECTION TERMINATED")
+        terminal.warning("CONNECTION TERMINATED")
     
     def execute_command(self, cmd_line):
         """Execute a command"""
@@ -110,7 +110,13 @@ class NetScanConsole:
         if cmd == 'help':
             self._show_help()
         elif cmd == 'scan':
-            self._start_scan(args[0] if args else None)
+            if args:
+                # Scan specific network
+                target = args[0]
+                self._scan_specific_network(target)
+            else:
+                # Scan all networks
+                self._run_scan()
         elif cmd == 'devices':
             self._show_devices()
         elif cmd == 'interfaces':
@@ -151,26 +157,25 @@ class NetScanConsole:
         print("\n" + "-" * 60 + "\n")
     
     def _show_help(self):
-        """Display help information"""
-        help_table = Table(title="NetScan Commands", box=HEAVY)
-        help_table.add_column("Command", style="cyan")
-        help_table.add_column("Description", style="green")
-        help_table.add_column("Usage", style="yellow")
+        """Show help information for available commands"""
+        terminal.success("\n[ Available Commands ]")
+        commands = [
+            ("help", "Show this help menu"),
+            ("scan", "Scan all available networks"),
+            ("scan <network>", "Scan a specific network (e.g., scan 10.42.1.1 or scan 192.168.1.0/24)"),
+            ("devices", "List all discovered devices"),
+            ("ports <ip>", "Scan ports on a specific device"),
+            ("interfaces", "List available network interfaces"),
+            ("export", "Export scan results to JSON"),
+            ("clear", "Clear screen"),
+            ("exit", "Exit application")
+        ]
         
-        # Add command details
-        help_table.add_row("help", "Display this help message", "help")
-        help_table.add_row("scan", "Scan for devices on the network", "scan [network/CIDR]")
-        help_table.add_row("devices", "List discovered devices", "devices")
-        help_table.add_row("interfaces", "List network interfaces", "interfaces")
-        help_table.add_row("scan_ports", "Scan ports on a device", "scan_ports <ip> [ports]")
-        help_table.add_row("info", "Show detailed information about a device", "info <ip>")
-        help_table.add_row("target", "Set or show the target network", "target [network/CIDR]")
-        help_table.add_row("export", "Export data to a file", "export [filename]")
-        help_table.add_row("clear", "Clear the screen", "clear")
-        help_table.add_row("about", "Show information about NetScan", "about")
-        help_table.add_row("exit", "Exit the program", "exit")
+        # Create a nice table with commands
+        for cmd, desc in commands:
+            terminal.info(f"  {cmd:<20} - {desc}")
         
-        self.console.print(help_table)
+        print("\n")
     
     def _show_about(self):
         """Display information about the tool"""
@@ -205,21 +210,35 @@ class NetScanConsole:
         self.scanning_thread.daemon = True
         self.scanning_thread.start()
     
-    def _run_scan(self, target=None):
-        """Run the network scan in a separate thread"""
-        terminal.print("Initializing scan module...")
-        time.sleep(0.5)
+    def _run_scan(self, target_network=None):
+        """Run network scan in a separate thread"""
+        if not self.scanner:
+            terminal.warning("Scanner module not initialized!")
+            return
         
-        if target:
-            terminal.print(f"Scanning network: {target}")
-            devices = self.scanner.scan_network(target)
-        else:
-            terminal.print("Scanning all local networks...")
-            devices = self.scanner.scan_network()
+        try:
+            # Display scanning message
+            if target_network:
+                terminal.info(f"Starting intensive scan on {target_network}...")
+                # Use our new intensive scanner method for specific networks
+                devices = self.scanner.scan_specific_network(target_network)
+            else:
+                terminal.info("Starting network scan on all interfaces...")
+                # Use regular scanner for all networks
+                devices = self.scanner.scan_network()
             
-        # Show summary when done
-        device_count = len(devices)
-        terminal.success(f"Scan complete. Discovered {device_count} devices.")
+            # Report on scan results
+            device_count = len(devices)
+            if device_count > 0:
+                terminal.success(f"Scan complete. Discovered {device_count} devices.")
+            else:
+                terminal.warning("Scan complete. No devices found.")
+            
+            # Store scan time
+            self.last_scan_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+        except Exception as e:
+            terminal.error(f"Scan error: {str(e)}")
     
     def _show_devices(self):
         """Display discovered devices"""
@@ -429,3 +448,18 @@ class NetScanConsole:
         """Allow external components to inject data into the console"""
         if key == "target_network":
             self.target_network = value
+    
+    def _scan_specific_network(self, target):
+        """Scan a specific network"""
+        if not self.scanner:
+            terminal.warning("ERROR: Scanner module not initialized!")
+            return
+            
+        # Start scan in a separate thread so we don't block the console
+        if self.scanning_thread and self.scanning_thread.is_alive():
+            terminal.info("A scan is already running...")
+            return
+        
+        self.scanning_thread = threading.Thread(target=self._run_scan, args=(target,))
+        self.scanning_thread.daemon = True
+        self.scanning_thread.start()

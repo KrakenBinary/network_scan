@@ -13,8 +13,7 @@ from netaddr import EUI, NotRegisteredError
 import datetime
 import json
 import platform
-
-from ...ui.cyber_effects import CyberEffect
+from src.ui.terminal_output import terminal
 
 class NetworkScanner:
     """Class for network discovery and scanning"""
@@ -136,7 +135,7 @@ class NetworkScanner:
             return devices
             
         except Exception as e:
-            print(f"Error scanning network {target_range}: {str(e)}")
+            terminal.error(f"Error scanning network {target_range}: {str(e)}")
             return []
     
     def get_mac_vendor(self, mac_address):
@@ -188,7 +187,7 @@ class NetworkScanner:
             return open_ports
             
         except Exception as e:
-            print(f"Error during port scan: {e}")
+            terminal.error(f"Error during port scan: {e}")
             return []
     
     def scan_network(self, target_range=None):
@@ -282,5 +281,5 @@ class NetworkScanner:
                 json.dump(export_data, f, indent=4)
             return filename
         except Exception as e:
-            print(f"Error exporting data: {str(e)}")
+            terminal.error(f"Error exporting data: {str(e)}")
             return None

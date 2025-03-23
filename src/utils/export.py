@@ -6,6 +6,9 @@ import json
 import csv
 from datetime import datetime
 
+# Import terminal output system
+from src.ui.terminal_output import terminal
+
 def export_to_file(devices, filename):
     """Export scan results to a file"""
     try:
@@ -32,7 +35,7 @@ def export_to_file(devices, filename):
             return export_to_json(devices, output_file)
             
     except Exception as e:
-        print(f"Error exporting data: {e}")
+        terminal.error(f"Error exporting data: {e}")
         return False
 
 def export_to_json(devices, output_file):
@@ -48,7 +51,7 @@ def export_to_json(devices, output_file):
             json.dump(data, f, indent=4)
         return True
     except Exception as e:
-        print(f"Error exporting to JSON: {e}")
+        terminal.error(f"Error exporting to JSON: {e}")
         return False
 
 def export_to_csv(devices, output_file):
@@ -68,5 +71,5 @@ def export_to_csv(devices, output_file):
                 
         return True
     except Exception as e:
-        print(f"Error exporting to CSV: {e}")
+        terminal.error(f"Error exporting to CSV: {e}")
         return False

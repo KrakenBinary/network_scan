@@ -5,20 +5,21 @@ import os
 import sys
 import time
 import threading
+import json
+from datetime import datetime
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
-from prompt_toolkit.formatted_text import ANSI
 from rich.console import Console
 from rich.table import Table
-from rich.syntax import Syntax
-from rich.panel import Panel
-from rich.box import DOUBLE, HEAVY
-from datetime import datetime
+from rich.box import HEAVY, DOUBLE
 
-from .cyber_effects import CyberEffect, NEON_GREEN, CYAN_BLUE, RESET
+# Import CyberEffect with absolute import to avoid issues
+from src.ui.cyber_effects import CyberEffect
+from .terminal_output import terminal, NEON_GREEN, RESET, MSG_NORMAL, MSG_WARNING, MSG_INFO, MSG_ERROR
 
 # Define available commands
 AVAILABLE_COMMANDS = [
@@ -54,19 +55,23 @@ class NetScanConsole:
     
     def start(self):
         """Start the interactive console"""
+        # Display the welcome message (which includes the banner)
         self._show_welcome()
         
+        # Main command loop
         while self.running:
             try:
-                # Create prompt with simpler style
-                prompt_text = ANSI(f"{NEON_GREEN}>> {RESET}")
-                command = self.session.prompt(prompt_text)
+                # Create the prompt
+                prompt_text = ANSI('\033[1;31m┌──[\033[1;36mNetScan\033[1;31m]─[\033[1;33m~\033[1;31m]\n└─\033[1;37m$ \033[0m')
+                
+                # Get command from user
+                cmd = self.session.prompt(prompt_text, refresh_interval=0.5)
                 
                 # Process the command
-                self._process_command(command.strip())
+                self._process_command(cmd)
                 
             except KeyboardInterrupt:
-                self.cyber_fx.type_text("\nUse 'exit' to quit properly.", color=NEON_GREEN)
+                terminal.warning("\nUse 'exit' to quit.")
             except EOFError:
                 self.running = False
     
@@ -107,61 +112,59 @@ class NetScanConsole:
         elif cmd == 'about':
             self._show_about()
         else:
-            self.cyber_fx.type_text(f"Command not found: {cmd}", color=NEON_GREEN)
-            self.cyber_fx.type_text("Type 'help' for available commands", color=NEON_GREEN)
+            terminal.warning(f"Command not found: {cmd}. Type 'help' for available commands", msg_type=MSG_NORMAL)
     
     def _clear_screen(self):
         """Print a separator instead of clearing the screen"""
-        print(f"\n{NEON_GREEN}{'=' * 80}{RESET}\n")
+        terminal.separator(msg_type=MSG_NORMAL)
     
     def _show_welcome(self):
         """Display welcome message and banner"""
         self._display_banner()
         
-        welcome_text = """
-╔═══════════════════════════════════════════════════════════════════════╗
-║                   Welcome to the KrakenBinary NetScan                 ║
-║                                                                       ║
-║  A hacker-themed network discovery tool for MSP reconnaissance.       ║
-║  Type 'help' for available commands, or 'exit' to quit.               ║
-╚═══════════════════════════════════════════════════════════════════════╝
-        """
-        self.cyber_fx.type_text(welcome_text, speed=0.001)
-        print()
+        terminal.type_text("Welcome to the KrakenBinary NetScan", speed=0.01, msg_type=MSG_NORMAL)
+        terminal.print("-" * 60, msg_type="normal")
+        terminal.info("Type 'help' to see available commands")
+        terminal.info("Type 'exit' to quit")
+        terminal.print("")  # Add empty line for spacing
     
     def _show_help(self):
         """Display help information"""
-        help_table = Table(title="Available Commands", box=HEAVY)
+        # Create rich table for help
+        from rich.table import Table
+        help_table = Table(title="NetScan Commands")
         
+        # Add columns
         help_table.add_column("Command", style="cyan")
         help_table.add_column("Description", style="green")
-        help_table.add_column("Usage", style="green")
+        help_table.add_column("Example", style="yellow")
         
-        help_table.add_row("help", "Show this help information", "help")
-        help_table.add_row("scan", "Scan the network for devices", "scan [network/CIDR]")
-        help_table.add_row("interfaces", "List network interfaces", "interfaces")
-        help_table.add_row("devices", "List discovered devices", "devices")
-        help_table.add_row("target", "Set target network", "target 192.168.1.0/24")
-        help_table.add_row("scan_ports", "Scan ports on a device", "scan_ports <IP> [ports]")
-        help_table.add_row("info", "Show detailed info for a device", "info <IP>")
-        help_table.add_row("export", "Export scan results", "export [filename]")
+        # Add rows
+        help_table.add_row("help", "Show this help menu", "help")
+        help_table.add_row("scan [target]", "Scan for devices on network", "scan 192.168.1.0/24")
+        help_table.add_row("ports [ip]", "Scan ports on a specific IP", "ports 192.168.1.1")
+        help_table.add_row("show devices", "Show discovered devices", "show devices")
+        help_table.add_row("show [ip]", "Show details about an IP", "show 192.168.1.1")
+        help_table.add_row("set network [cidr]", "Set target network", "set network 192.168.1.0/24")
+        help_table.add_row("export [filename]", "Export results to file", "export results.json")
+        help_table.add_row("info", "Show system information", "info")
         help_table.add_row("clear", "Clear the screen", "clear")
-        help_table.add_row("about", "Display about information", "about")
         help_table.add_row("exit", "Exit the program", "exit")
         
-        self.console.print(help_table)
+        # Use terminal system instead of direct console.print
+        terminal.table(help_table)
     
     def _exit_program(self):
         """Exit the program"""
-        self.cyber_fx.type_text("Disconnecting from the network...", speed=0.01, color=NEON_GREEN)
+        terminal.type_text("Disconnecting from the network...", speed=0.01, msg_type=MSG_NORMAL)
         time.sleep(0.5)
-        self.cyber_fx.glitch_text("CONNECTION TERMINATED")
+        terminal.glitch_text("CONNECTION TERMINATED")
         self.running = False
     
     def _start_scan(self, args):
         """Start a network scan"""
         if not self.scanner:
-            self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
+            terminal.warning("ERROR: Scanner module not initialized!", msg_type=MSG_NORMAL)
             return
             
         target = None
@@ -172,7 +175,7 @@ class NetScanConsole:
             
         # Use a thread to prevent UI blocking
         if self.scanning_thread and self.scanning_thread.is_alive():
-            self.cyber_fx.type_text("A scan is already in progress!", color=NEON_GREEN)
+            terminal.type_text("A scan is already in progress!", msg_type=MSG_NORMAL)
             return
             
         self.scanning_thread = threading.Thread(
@@ -184,30 +187,30 @@ class NetScanConsole:
     
     def _run_scan(self, target=None):
         """Run the network scan in a separate thread"""
-        print("Initializing scan module...")
+        terminal.print("Initializing scan module...", msg_type=MSG_NORMAL)
         time.sleep(0.5)
         
         if target:
             self.cyber_fx.simulate_connection(target)
             devices = self.scanner.scan_network(target)
         else:
-            print("Scanning all local networks...")
+            terminal.print("Scanning all local networks...", msg_type=MSG_NORMAL)
             devices = self.scanner.scan_network()
             
         # Show summary when done
         device_count = len(devices)
-        self.cyber_fx.type_text(f"Scan complete. Discovered {device_count} devices.", color=NEON_GREEN)
+        terminal.success(f"Scan complete. Discovered {device_count} devices.", msg_type=MSG_NORMAL)
     
     def _show_devices(self):
         """Display discovered devices"""
         if not self.scanner:
-            self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
+            terminal.warning("ERROR: Scanner module not initialized!", msg_type=MSG_NORMAL)
             return
             
         devices = self.scanner.get_scan_results()
         
         if not devices:
-            self.cyber_fx.type_text("No devices found. Run 'scan' first.", color=NEON_GREEN)
+            terminal.info("No devices found. Run 'scan' first.", msg_type=MSG_NORMAL)
             return
             
         table = Table(title="Discovered Devices", box=DOUBLE)
@@ -225,18 +228,19 @@ class NetScanConsole:
                 device.get('vendor', 'Unknown')
             )
         
-        self.console.print(table)
+        # Use terminal system instead of direct console.print
+        terminal.table(table)
     
     def _show_interfaces(self):
         """Display network interfaces"""
         if not self.scanner:
-            self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
+            terminal.warning("ERROR: Scanner module not initialized!", msg_type=MSG_NORMAL)
             return
             
         interfaces = self.scanner.get_local_interfaces()
         
         if not interfaces:
-            self.cyber_fx.type_text("No network interfaces found.", color=NEON_GREEN)
+            terminal.info("No network interfaces found.", msg_type=MSG_NORMAL)
             return
             
         table = Table(title="Network Interfaces", box=DOUBLE)
@@ -244,7 +248,6 @@ class NetScanConsole:
         table.add_column("Interface", style="cyan")
         table.add_column("IP Address", style="green")
         table.add_column("Netmask", style="green")
-        table.add_column("Network", style="green")
         table.add_column("MAC Address", style="green")
         
         for iface in interfaces:
@@ -252,137 +255,151 @@ class NetScanConsole:
                 iface.get('name', 'Unknown'),
                 iface.get('ip', 'Unknown'),
                 iface.get('netmask', 'Unknown'),
-                iface.get('range', 'Unknown'),
                 iface.get('mac', 'Unknown')
             )
         
-        self.console.print(table)
+        # Use terminal system instead of direct console.print
+        terminal.table(table)
     
     def _scan_ports(self, ip, args):
         """Scan ports on a specific device"""
         if not self.scanner:
-            self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
+            terminal.warning("ERROR: Scanner module not initialized!", msg_type=MSG_NORMAL)
             return
             
-        ports = args[0] if args else "22,80,443,445,3389,8080"
+        # Parse port arguments
+        ports = None
+        if args:
+            try:
+                # Handle comma-separated list (e.g. "80,443,8080")
+                if ',' in args[0]:
+                    ports = [int(p) for p in args[0].split(',')]
+                # Handle range (e.g. "1-1000")
+                elif '-' in args[0]:
+                    start, end = map(int, args[0].split('-'))
+                    ports = range(start, end + 1)
+                # Handle single port
+                else:
+                    ports = [int(p) for p in args]
+            except ValueError:
+                terminal.warning("Invalid port specification. Use numbers, ranges (e.g. 1-1000), or comma-separated values.", msg_type=MSG_NORMAL)
+                return
         
-        self.cyber_fx.type_text(f"Scanning ports on {ip}...", color=NEON_GREEN)
-        ports_info = self.scanner.port_scan(ip, ports, True)
+        # Start spinner
+        terminal.print(f"Scanning ports on {ip}...", msg_type=MSG_NORMAL)
         
-        if not ports_info:
-            self.cyber_fx.type_text(f"No open ports found on {ip}", color=NEON_GREEN)
+        # Perform scan
+        results = self.scanner.scan_ports(ip, ports)
+        
+        # Display results
+        if not results:
+            terminal.info(f"No open ports found on {ip}.", msg_type=MSG_NORMAL)
             return
             
         table = Table(title=f"Open Ports on {ip}", box=DOUBLE)
         
         table.add_column("Port", style="cyan")
         table.add_column("Service", style="green")
-        table.add_column("Version", style="green")
+        table.add_column("State", style="green")
         
-        for port_info in ports_info:
+        for port, info in results.items():
             table.add_row(
-                str(port_info.get('port', 'Unknown')),
-                port_info.get('service', 'Unknown'),
-                port_info.get('version', 'Unknown')
+                f"{port}", 
+                info.get('service', 'Unknown'),
+                info.get('state', 'Unknown')
             )
         
-        self.console.print(table)
+        # Use terminal system instead of direct console.print
+        terminal.table(table)
     
     def _show_device_info(self, ip):
         """Show detailed information about a device"""
         if not self.scanner:
-            self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
+            terminal.warning("ERROR: Scanner module not initialized!", msg_type=MSG_NORMAL)
             return
             
-        devices = self.scanner.get_scan_results()
-        device = next((d for d in devices if d.get('ip') == ip), None)
+        device = self.scanner.get_device_by_ip(ip)
         
         if not device:
-            self.cyber_fx.type_text(f"Device with IP {ip} not found. Run 'scan' first.", color=NEON_GREEN)
+            terminal.warning(f"Device with IP {ip} not found. Run 'scan' first.", msg_type=MSG_NORMAL)
             return
             
-        # Display basic info
-        panel = Panel(
-            f"IP Address: {device.get('ip', 'Unknown')}\n"
-            f"Hostname: {device.get('hostname', 'Unknown')}\n"
-            f"MAC Address: {device.get('mac', 'Unknown')}\n"
-            f"Vendor: {device.get('vendor', 'Unknown')}\n"
-            f"Status: {device.get('status', 'Unknown')}",
-            title=f"Device Information: {ip}",
-            border_style="green",
-            box=HEAVY
-        )
+        # Display device info
+        terminal.print(f"\n[ Device Information: {ip} ]", msg_type=MSG_NORMAL)
+        terminal.print("=" * 60, msg_type=MSG_NORMAL)
         
-        self.console.print(panel)
+        terminal.print(f"IP Address:    {device.get('ip', 'Unknown')}", msg_type=MSG_NORMAL)
+        terminal.print(f"Hostname:      {device.get('hostname', 'Unknown')}", msg_type=MSG_NORMAL)
+        terminal.print(f"MAC Address:   {device.get('mac', 'Unknown')}", msg_type=MSG_NORMAL)
+        terminal.print(f"Vendor:        {device.get('vendor', 'Unknown')}", msg_type=MSG_NORMAL)
         
-        # Offer to scan ports
-        self.cyber_fx.type_text(f"Would you like to scan ports on {ip}? (y/n)", color=NEON_GREEN)
-        response = input().strip().lower()
+        # Display open ports if any
+        ports = device.get('ports', {})
+        if ports:
+            terminal.print("\nOpen Ports:", msg_type=MSG_NORMAL)
+            terminal.print("-" * 40, msg_type=MSG_NORMAL)
+            
+            for port, info in ports.items():
+                terminal.print(f"  {port}/tcp   {info.get('service', 'Unknown')}", msg_type=MSG_NORMAL)
         
-        if response == 'y' or response == 'yes':
-            self._scan_ports(ip, [])
+        print()
     
     def _set_target(self, target):
         """Set the target network"""
         self.target_network = target
-        self.cyber_fx.type_text(f"Target network set to: {target}", color=NEON_GREEN)
+        terminal.success(f"Target network set to: {target}", msg_type=MSG_NORMAL)
     
     def _show_current_target(self):
         """Show the current target network"""
         if self.target_network:
-            self.cyber_fx.type_text(f"Current target network: {self.target_network}", color=NEON_GREEN)
+            terminal.print(f"Current target network: {self.target_network}", msg_type=MSG_NORMAL)
         else:
-            self.cyber_fx.type_text("No target network set. Use 'target <network/CIDR>' to set one.", 
-                                   color=NEON_GREEN)
+            terminal.info("No target network set. Use 'target <network/CIDR>' to set one.", msg_type=MSG_NORMAL)
     
     def _export_data(self, filename=None):
         """Export scan data to a JSON file"""
         if not self.scanner:
-            self.cyber_fx.type_text("ERROR: Scanner module not initialized!", color="\033[31m")
+            terminal.warning("ERROR: Scanner module not initialized!", msg_type=MSG_NORMAL)
             return
+        
+        # Use provided filename or generate one with timestamp
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            filename = f"netscan_results_{timestamp}.json"
+        
+        # Make sure it has .json extension
+        if not filename.endswith('.json'):
+            filename = f"{filename}.json"
+        
+        # Make sure path exists
+        result_dir = os.path.join(os.getcwd(), "results")
+        os.makedirs(result_dir, exist_ok=True)
+        
+        # Full path to the export file
+        filepath = os.path.join(result_dir, filename)
             
-        if not self.scanner.get_scan_results():
-            self.cyber_fx.type_text("No scan data to export. Run 'scan' first.", color=NEON_GREEN)
-            return
-        
-        self.cyber_fx.type_text("Exporting network data to JSON...", color=NEON_GREEN)
-        
-        # Call the export function
-        saved_file = self.scanner.export_data_to_json(filename)
-        
-        if saved_file:
-            # Create a panel to show the export result
-            panel = Panel(
-                f"✓ Scan data exported successfully\n"
-                f"✓ File: {saved_file}\n"
-                f"✓ Devices: {len(self.scanner.get_scan_results())}\n"
-                f"✓ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                title="Export Complete",
-                border_style="green",
-                box=HEAVY
-            )
-            self.console.print(panel)
+        # Export data
+        if self.scanner.export_data_to_json(filepath):
+            terminal.success(f"Data exported to {filename}", msg_type=MSG_NORMAL)
         else:
-            self.cyber_fx.type_text("Error exporting data. Check permissions and try again.", color="\033[31m")
+            terminal.error("Error exporting data. Check permissions and try again.", msg_type=MSG_NORMAL)
     
     def _show_about(self):
         """Show information about the program"""
-        about_text = """
-╔═══════════════════════════════════════════════════════════════════════╗
-║                            About NetScan                              ║
-║                                                                       ║
-║  Version: 1.0.0                                                       ║
-║  Author: KrakenBinary                                                 ║
-║                                                                       ║
-║  A hacker-themed network discovery tool designed for MSPs to gather   ║
-║  comprehensive network information from new clients, including        ║
-║  networks, subnets, device names, MAC addresses, and IP addresses.    ║
-║                                                                       ║
-║  Built with Python using scapy, nmap, rich, and other libraries.      ║
-║  Features a cyberpunk aesthetic with interactive MUD-style console.   ║
-╚═══════════════════════════════════════════════════════════════════════╝
-        """
-        self.cyber_fx.type_text(about_text, speed=0.001, color=NEON_GREEN)
+        terminal.print("")  # Empty line for spacing
+        terminal.print("About NetScan", msg_type="success")
+        terminal.print("=" * 60, msg_type="normal")
+        terminal.print("NetScan - Network Discovery Tool", msg_type="normal")
+        terminal.print("Version: 1.0.0", msg_type="normal")
+        terminal.print("", msg_type="normal")  # Empty line
+        terminal.print("A hacker-themed network mapping tool for MSP reconnaissance", msg_type="normal")
+        terminal.print("", msg_type="normal")  # Empty line
+        terminal.print("Features:", msg_type="normal")
+        terminal.print("- Network device discovery using ARP", msg_type="normal")
+        terminal.print("- Port scanning with service detection", msg_type="normal")
+        terminal.print("- MAC address vendor lookup", msg_type="normal")
+        terminal.print("- Export results to JSON or CSV", msg_type="normal")
+        terminal.print("", msg_type="normal")  # Empty line
         
     def _display_banner(self):
         """Display application banner"""
@@ -399,7 +416,8 @@ class NetScanConsole:
 ║  [bright_green]Network Reconnaissance & Security Analysis Tool v1.0[/bright_green]  ║
 ╚══════════════════════════════════════════════════════╝[/bright_cyan]
 """
-        self.console.print(netscan_logo)
+        # Use terminal system instead of direct console.print
+        terminal.rich_print(netscan_logo)
     
     def inject_scanner(self, scanner):
         """Inject the network scanner instance"""

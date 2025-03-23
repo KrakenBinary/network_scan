@@ -96,7 +96,9 @@ class TerminalOutput:
         
         glitch_chars = "!@#$%^&*()_+-=[]\\{}|;':\",./<>?`~"
         
-        for _ in range(iterations):
+        # Implement the glitch effect directly in terminal_output.py
+        for i in range(iterations):
+            # Generate glitched version of text
             glitched_text = ""
             for char in text:
                 if random.random() < 0.3 and char != " ":
@@ -104,6 +106,7 @@ class TerminalOutput:
                 else:
                     glitched_text += char
             
+            # Print the glitched text and wait
             sys.stdout.write("\r" + color + glitched_text + RESET)
             sys.stdout.flush()
             time.sleep(speed)
@@ -139,13 +142,6 @@ class TerminalOutput:
         else:
             self.print(text, msg_type=MSG_WARNING)
     
-    def success(self, text, typed=False, speed=0.01):
-        """Print a success message in bright green"""
-        if typed:
-            self.type_text(text, speed=speed, msg_type=MSG_SUCCESS)
-        else:
-            self.print(text, msg_type=MSG_SUCCESS)
-            
     def error(self, text, typed=False, speed=0.01):
         """Print an error message in red"""
         if typed:
@@ -153,23 +149,25 @@ class TerminalOutput:
         else:
             self.print(text, msg_type=MSG_ERROR)
     
-    def prompt(self, text, typed=False, speed=0.01):
-        """Print a prompt message and return user input"""
+    def success(self, text, typed=False, speed=0.01):
+        """Print a success message in green"""
         if typed:
-            self.type_text(f"{text}", speed=speed, newline=False)
+            self.type_text(text, speed=speed, msg_type=MSG_SUCCESS)
         else:
-            self.print(f"{text}", newline=False)
+            self.print(text, msg_type=MSG_SUCCESS)
+            
+    def prompt(self, text, msg_type=MSG_INFO):
+        """Display a prompt and get user input"""
+        self.print(text, msg_type=msg_type, newline=False)
         return input()
-
-    def table(self, table_object):
-        """Print a rich table object through the console"""
-        # This method provides consistent handling of rich tables
-        self.console.print(table_object)
-    
-    def rich_print(self, rich_content):
-        """Print rich content (tables, panels, etc) through the console"""
-        # This method handles any rich content that needs direct console access
-        self.console.print(rich_content)
+        
+    def table(self, table_obj):
+        """Display a rich table"""
+        self.console.print(table_obj)
+        
+    def rich_print(self, obj):
+        """Print a rich console object"""
+        self.console.print(obj)
     
 # Create a global instance for easy importing
 terminal = TerminalOutput()

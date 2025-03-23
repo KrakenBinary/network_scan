@@ -17,8 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.box import HEAVY, DOUBLE
 
-# Import CyberEffect with absolute import to avoid issues
-from src.ui.cyber_effects import CyberEffect
+# Import terminal_output only - we no longer need CyberEffect
 from .terminal_output import terminal, NEON_GREEN, RESET, MSG_NORMAL, MSG_WARNING, MSG_INFO, MSG_ERROR
 
 # Define available commands
@@ -31,8 +30,11 @@ class NetScanConsole:
     """Interactive MUD-style console for the network scanner"""
     
     def __init__(self):
-        self.cyber_fx = CyberEffect()
+        """Initialize the console"""
+        # Create rich console instance
         self.console = Console()
+        
+        # Set up console variables
         self.running = True
         self.target_network = None
         self.scanning_thread = None
@@ -191,7 +193,7 @@ class NetScanConsole:
         time.sleep(0.5)
         
         if target:
-            self.cyber_fx.simulate_connection(target)
+            terminal.print(f"Scanning network: {target}", msg_type=MSG_NORMAL)
             devices = self.scanner.scan_network(target)
         else:
             terminal.print("Scanning all local networks...", msg_type=MSG_NORMAL)

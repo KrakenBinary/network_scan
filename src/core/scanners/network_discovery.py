@@ -19,7 +19,6 @@ class NetworkScanner:
     """Class for network discovery and scanning"""
     
     def __init__(self):
-        self.cyber_fx = CyberEffect()
         self.mac_lookup = MacLookup()
         self.discovered_devices = []
         self.local_interfaces = []
@@ -28,67 +27,48 @@ class NetworkScanner:
     
     def get_local_interfaces(self):
         """Get all available network interfaces"""
-        with self.cyber_fx.hacker_spinner("Analyzing network interfaces"):
-            interfaces = []
-            for iface in netifaces.interfaces():
-                # Skip loopback interface
-                if iface.startswith('lo'):
+        terminal.info("Analyzing network interfaces...")
+        interfaces = []
+        for iface in netifaces.interfaces():
+            try:
+                # Get interface details
+                addrs = netifaces.ifaddresses(iface)
+                
+                # Skip interfaces with no IPv4 address
+                if netifaces.AF_INET not in addrs:
                     continue
                 
-                try:
-                    # Get the addresses for this interface
-                    addresses = netifaces.ifaddresses(iface)
-                    
-                    # Check if it has IPv4 address
-                    if netifaces.AF_INET in addresses:
-                        ipv4_info = addresses[netifaces.AF_INET][0]
-                        
-                        # Get MAC address if available
-                        mac = None
-                        if netifaces.AF_LINK in addresses:
-                            mac = addresses[netifaces.AF_LINK][0].get('addr')
-                        
-                        iface_info = {
-                            'name': iface,
-                            'ip': ipv4_info.get('addr'),
-                            'netmask': ipv4_info.get('netmask'),
-                            'mac': mac
-                        }
-                        
-                        # Calculate network range
-                        if iface_info['ip'] and iface_info['netmask']:
-                            try:
-                                network = ipaddress.IPv4Network(
-                                    f"{iface_info['ip']}/{iface_info['netmask']}", 
-                                    strict=False
-                                )
-                                iface_info['network'] = str(network.network_address)
-                                iface_info['cidr'] = network.prefixlen
-                                iface_info['range'] = f"{network.network_address}/{network.prefixlen}"
-                            except ValueError:
-                                pass
-                        
-                        interfaces.append(iface_info)
-                except (ValueError, KeyError):
-                    continue
-            
-            self.local_interfaces = interfaces
-            return interfaces
+                # Get IP address and netmask
+                ipv4_info = addrs[netifaces.AF_INET][0]
+                ip = ipv4_info.get('addr', 'Unknown')
+                netmask = ipv4_info.get('netmask', 'Unknown')
+                
+                # Get MAC address if available
+                mac = "Unknown"
+                if netifaces.AF_LINK in addrs:
+                    mac = addrs[netifaces.AF_LINK][0].get('addr', 'Unknown')
+                
+                # Add to list of interfaces
+                interfaces.append({
+                    'name': iface,
+                    'ip': ip,
+                    'netmask': netmask,
+                    'mac': mac
+                })
+            except Exception as e:
+                terminal.error(f"Error getting info for interface {iface}: {str(e)}")
+        
+        self.local_interfaces = interfaces
+        terminal.success(f"Found {len(interfaces)} network interfaces")
+        return interfaces
     
-    def arp_scan(self, target_range, progress=None, task_id=None):
+    def arp_scan(self, target_range):
         """
         Perform ARP scan on a target network range
         target_range: IP range in CIDR notation (e.g., '192.168.1.0/24')
         """
         try:
-            target_network = ipaddress.IPv4Network(target_range)
             devices = []
-            
-            # Don't create a new task if we already have one
-            has_own_task = False
-            if progress and task_id is None:
-                task_id = progress.add_task(f"[bright_green]Scanning {target_range}", total=100)
-                has_own_task = True
             
             # Create ARP request packet
             arp = ARP(pdst=target_range)
@@ -96,9 +76,10 @@ class NetworkScanner:
             packet = ether/arp
             
             # Send packet and capture responses
+            terminal.info(f"Sending ARP packets to {target_range}")
             result = srp(packet, timeout=3, verbose=0)[0]
             
-            completed = 0
+            # Process the responses
             for sent, received in result:
                 # Extract information from response
                 mac_addr = received.hwsrc
@@ -106,36 +87,26 @@ class NetworkScanner:
                 if len(mac_addr) > 17:  # Standard MAC is 17 chars with colons
                     mac_addr = ":".join([mac_addr[i:i+2] for i in range(0, 12, 2)])
                 
+                ip_addr = received.psrc
+                
+                # Get vendor and hostname
+                vendor = self.get_mac_vendor(mac_addr)
+                hostname = self.get_hostname(ip_addr)
+                
                 device = {
-                    'ip': received.psrc,
+                    'ip': ip_addr,
                     'mac': mac_addr,
-                    'vendor': self.get_mac_vendor(mac_addr),
-                    'hostname': self.get_hostname(received.psrc),
+                    'vendor': vendor,
+                    'hostname': hostname,
                     'status': 'up'
                 }
-                devices.append(device)
                 
-                # Update progress
-                if progress and task_id is not None:
-                    completed += 1
-                    if has_own_task:
-                        # If we created our own task, update based on completed devices
-                        progress.update(task_id, advance=1, description=f"[bright_green]Found {completed} devices")
-                    else:
-                        # If using parent task, just advance parent task
-                        progress.update(task_id, advance=1)
-            
-            # Complete the progress bar
-            if progress and task_id is not None and has_own_task:
-                progress.update(task_id, completed=100)
-            
-            with self._lock:
-                self.discovered_devices.extend(devices)
+                devices.append(device)
             
             return devices
             
         except Exception as e:
-            terminal.error(f"Error scanning network {target_range}: {str(e)}")
+            terminal.error(f"ARP scan error: {str(e)}")
             return []
     
     def get_mac_vendor(self, mac_address):
@@ -163,8 +134,8 @@ class NetworkScanner:
             nm = nmap.PortScanner()
             
             if progress:
-                with self.cyber_fx.hacker_spinner(f"Scanning ports on {ip_address}"):
-                    result = nm.scan(ip_address, ports, arguments='-T4 -sV')
+                terminal.info(f"Scanning ports on {ip_address}...")
+                result = nm.scan(ip_address, ports, arguments='-T4 -sV')
             else:
                 result = nm.scan(ip_address, ports, arguments='-T4 -sV')
             
@@ -202,24 +173,48 @@ class NetworkScanner:
             
             all_devices = []
             
-            # Use a single progress bar for all networks
-            with self.cyber_fx.cyber_progress() as progress:
-                total_interfaces = len([iface for iface in self.local_interfaces if 'range' in iface])
-                main_task = progress.add_task("[bright_green]Scanning all networks", total=total_interfaces)
-                
-                for interface in self.local_interfaces:
-                    if 'range' in interface:
-                        # Don't use progress.add_task in arp_scan, just pass the main task
-                        devices = self.arp_scan(interface['range'], progress, main_task)
+            # Scan each interface
+            terminal.info("Starting network scan across all interfaces...")
+            total_interfaces = len(self.local_interfaces)
+            
+            for i, interface in enumerate(self.local_interfaces):
+                # Only scan interfaces with valid IP addresses
+                if 'ip' in interface and interface['ip'] != 'Unknown':
+                    # Calculate network CIDR if possible
+                    try:
+                        ip = interface['ip']
+                        netmask = interface['netmask']
+                        network = f"{ip}/{netmask}"
+                        
+                        terminal.info(f"Scanning network: {network} ({i+1}/{total_interfaces})")
+                        
+                        # Perform the ARP scan without progress bar
+                        devices = self.arp_scan(network)
                         all_devices.extend(devices)
+                        
+                        # Report results for this interface
+                        terminal.success(f"Found {len(devices)} devices on {interface['name']} ({ip})")
+                    except Exception as e:
+                        terminal.error(f"Error scanning interface {interface['name']}: {str(e)}")
             
             self.discovered_devices = all_devices
+            if all_devices:
+                terminal.success(f"Scan complete! Discovered {len(all_devices)} devices total")
+            else:
+                terminal.warning("Scan complete. No devices found.")
             return all_devices
         else:
             # Scan specific target range
-            with self.cyber_fx.cyber_progress() as progress:
-                task = progress.add_task(f"[bright_green]Scanning {target_range}", total=100)
-                devices = self.arp_scan(target_range, progress, task)
+            terminal.info(f"Scanning target network: {target_range}")
+            
+            # Perform the scan
+            devices = self.arp_scan(target_range)
+            
+            # Report results
+            if devices:
+                terminal.success(f"Found {len(devices)} devices on {target_range}")
+            else:
+                terminal.warning(f"No devices found on {target_range}")
             
             return devices
     

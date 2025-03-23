@@ -9,7 +9,6 @@ import random
 from rich.console import Console
 
 from src.ui.terminal_output import terminal
-from src.ui.cyber_effects import CyberEffect
 from src.ui.console_ui import NetScanConsole
 from src.core.scanners.network_discovery import NetworkScanner
 
@@ -26,9 +25,6 @@ def check_root():
 
 def simulate_loading():
     """Create a hacker-style loading sequence"""
-    # Initialize cyber effects
-    cyber_fx = CyberEffect()
-    
     # Start with glitch text for the main initialization
     terminal.glitch_text("[SYSTEM BOOT] Initializing NetScan v1.0", iterations=2)
     time.sleep(0.5)
@@ -86,12 +82,15 @@ def main():
         simulate_loading()
         
         # Initialize scanner
+        terminal.info("[TRACE] Initializing scanner...")
         scanner = NetworkScanner()
         
         # Create console only after loading is complete 
+        terminal.info("[TRACE] Creating console...")
         console = NetScanConsole()
         
         # Inject scanner into console
+        terminal.info("[TRACE] Injecting scanner...")
         console.inject_scanner(scanner)
         
         # Start the console (this will display the banner)

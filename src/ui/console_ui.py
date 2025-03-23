@@ -5,25 +5,29 @@ import os
 import sys
 import time
 import threading
+import datetime
+import platform
 import json
-from datetime import datetime
+import importlib
+import glob
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
 from rich.console import Console
 from rich.table import Table
-from rich.box import HEAVY, DOUBLE
+from rich.panel import Panel
+from rich.text import Text
+from rich.box import DOUBLE, HEAVY
+
+from .terminal_output import terminal, MSG_NORMAL, MSG_WARNING, MSG_INFO, MSG_ERROR
 
 # Import terminal_output only - we no longer need CyberEffect
-from .terminal_output import terminal, NEON_GREEN, RESET, MSG_NORMAL, MSG_WARNING, MSG_INFO, MSG_ERROR
-
 # Define available commands
 AVAILABLE_COMMANDS = [
     'help', 'scan', 'devices', 'interfaces', 'scan_ports', 'info', 'target', 
-    'export', 'clear', 'exit', 'about'
+    'export', 'clear', 'exit', 'about', 'subnets', 'scanall'
 ]
 
 class NetScanConsole:
@@ -42,58 +46,77 @@ class NetScanConsole:
         # Scanner will be injected later
         self.scanner = None
         
-        # Setup prompt toolkit
-        command_completer = WordCompleter(AVAILABLE_COMMANDS)
+        # Initialize command history and prompt styling
         self.history = InMemoryHistory()
         self.session = PromptSession(
             history=self.history,
-            auto_suggest=AutoSuggestFromHistory(),
-            completer=command_completer,
-            style=Style.from_dict({
-                'prompt': 'ansired bold',
-            }),
-            complete_in_thread=True
+            auto_suggest=AutoSuggestFromHistory()
         )
-    
+        
+        # Create prompt style
+        self.prompt_style = Style.from_dict({
+            # Styling for prompt
+            'prompt': 'ansigreen bold',
+            # Styling for user input
+            'command': 'ansibrightgreen',
+        })
+
     def inject_scanner(self, scanner):
         """Inject the scanner module"""
         self.scanner = scanner
     
     def display_welcome(self):
         """Display welcome message and banner"""
-        self.console.print("\n")
-        with open(os.path.join(os.path.dirname(__file__), 'banner.txt'), 'r') as f:
-            banner = f.read()
-            self.console.print(f"[bold green]{banner}[/bold green]")
+        terminal.show_banner()
         
-        self.console.print("\n[bold cyan]NetScan - Advanced Network Reconnaissance Tool[/bold cyan]")
-        self.console.print("[cyan]----------------------------------------[/cyan]")
-        self.console.print("[cyan]Type 'help' for available commands[/cyan]")
-        self.console.print("[cyan]Type 'exit' to quit[/cyan]")
-        self.console.print("\n")
-    
+        terminal.print("Welcome to NetScan Terminal", msg_type="info")
+        terminal.print("Type 'help' to see available commands\n", msg_type="info")
+        
     def start(self):
         """Start the interactive console"""
-        self.display_welcome()
-        
-        while self.running:
-            try:
-                # Get user input
-                user_input = self.session.prompt('┌──[NetScan]─[~]\n└─$ ')
-                print()  # Add newline after command
-                
-                # Execute command
-                self.execute_command(user_input)
-                
-            except KeyboardInterrupt:
-                self.running = False
-            except EOFError:
-                self.running = False
-        
-        # Show exit message
-        terminal.info("Disconnecting from the network...")
-        time.sleep(0.5)
-        terminal.warning("CONNECTION TERMINATED")
+        try:
+            # Display banner and welcome message
+            self.display_welcome()
+            
+            # Main command loop
+            while self.running:
+                try:
+                    # Prompt for command with retro styling
+                    user_input = self.session.prompt(
+                        [
+                            ('class:prompt', '['),
+                            ('class:prompt', 'NETSCAN'),
+                            ('class:prompt', '] '),
+                            ('class:prompt', '> '),
+                        ],
+                        style=self.prompt_style
+                    ).strip()
+                    
+                    if not user_input:
+                        continue
+                        
+                    # Process the command
+                    self.execute_command(user_input)
+                    
+                except KeyboardInterrupt:
+                    # Handle Ctrl+C gracefully
+                    terminal.warning("\nInterrupted!")
+                    self.running = False
+                    
+                except EOFError:
+                    # Handle Ctrl+D (EOF)
+                    terminal.warning("\nExiting...")
+                    self.running = False
+                    
+        except Exception as e:
+            terminal.error(f"Console error: {str(e)}")
+            
+        finally:
+            terminal.info("Goodbye!")
+            # Show exit message
+            terminal.info("Disconnecting from the network...")
+            time.sleep(0.5)
+            terminal.warning("CONNECTION TERMINATED")
     
     def execute_command(self, cmd_line):
         """Execute a command"""
@@ -117,6 +140,8 @@ class NetScanConsole:
             else:
                 # Scan all networks
                 self._run_scan()
+        elif cmd == 'scanall':
+            self._scan_all_subnets()
         elif cmd == 'devices':
             self._show_devices()
         elif cmd == 'interfaces':
@@ -144,11 +169,14 @@ class NetScanConsole:
             else:
                 self._export_data()
         elif cmd == 'clear':
-            os.system('clear')
+            # Use separator instead of clearing screen
+            terminal.clear_screen()
         elif cmd == 'exit':
             self.running = False
         elif cmd == 'about':
             self._show_about()
+        elif cmd == 'subnets':
+            self._show_subnets()
         else:
             terminal.warning(f"Command not found: {cmd}. Type 'help' for available commands")
     
@@ -157,43 +185,84 @@ class NetScanConsole:
         print("\n" + "-" * 60 + "\n")
     
     def _show_help(self):
-        """Show help information for available commands"""
-        terminal.success("\n[ Available Commands ]")
+        """Display help information"""
+        terminal.clear_screen()
+        
+        # Display header without animation for reliability
+        terminal.success("NETSCAN COMMAND REFERENCE")
+        print()
+        
+        # Create help content with sections
         commands = [
-            ("help", "Show this help menu"),
-            ("scan", "Scan all available networks"),
-            ("scan <network>", "Scan a specific network (e.g., scan 10.42.1.1 or scan 192.168.1.0/24)"),
-            ("devices", "List all discovered devices"),
-            ("ports <ip>", "Scan ports on a specific device"),
-            ("interfaces", "List available network interfaces"),
-            ("export", "Export scan results to JSON"),
-            ("clear", "Clear screen"),
-            ("exit", "Exit application")
+            ["scan", "Scan the local network for devices"],
+            ["scanip <ip>", "Scan a specific IP address"],
+            ["scannet <subnet>", "Scan a specific subnet (e.g., 192.168.1.0/24)"],
+            ["scanall", "Discover and scan all accessible subnets"],
+            ["subnets", "Show active subnets"],
+            ["devices", "Show discovered devices"],
+            ["interfaces", "Show network interfaces"],
+            ["export <filename>", "Export scan results to JSON/CSV file"],
+            ["about", "Show information about NetScan"],
+            ["clear", "Clear the screen"],
+            ["exit/quit", "Exit the application"],
+            ["help", "Show this help message"]
         ]
         
-        # Create a nice table with commands
-        for cmd, desc in commands:
-            terminal.info(f"  {cmd:<20} - {desc}")
+        # Display command table with retro styling
+        terminal.hacker_table("AVAILABLE COMMANDS", ["Command", "Description"], commands)
         
-        print("\n")
+        # Show advanced usage tips
+        terminal.info("\nADVANCED USAGE TIPS:")
+        terminal.print(" • Run 'scanall' for comprehensive network discovery", msg_type="info")
+        terminal.print(" • Use 'export results.json' to save your findings", msg_type="info")
+        terminal.print(" • MAC addresses are displayed in xx-xx-xx-xx-xx-xx format", msg_type="info")
+        
+        terminal.info("\nPress any key to continue...")
+        input()
+        terminal.clear_screen()
     
     def _show_about(self):
         """Display information about the tool"""
-        about_table = Table(title="About NetScan", box=DOUBLE)
-        about_table.add_column("Item", style="cyan")
-        about_table.add_column("Details", style="green")
+        import platform
         
-        about_table.add_row("Name", "NetScan")
-        about_table.add_row("Version", "1.0")
-        about_table.add_row("Author", "KrakenBinary")
-        about_table.add_row("License", "MIT")
-        about_table.add_row("Description", "Advanced network reconnaissance and scanning tool")
-        about_table.add_row("Features", "ARP scanning, port scanning, device discovery")
-        about_table.add_row("Platform", platform.platform())
-        about_table.add_row("Python", sys.version)
-        about_table.add_row("Date", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # Clear screen and show retro header
+        terminal.clear_screen()
         
-        self.console.print(about_table)
+        # Display title with consistent styling
+        terminal.success("N E T S C A N - T E R M I N A L")
+        time.sleep(0.5)
+        
+        # Display cool ASCII art
+        print(f"""
+    ┌───────────────────────────────────────────────┐
+    │  █▓▒░  ADVANCED NETWORK RECONNAISSANCE  ░▒▓█  │
+    └───────────────────────────────────────────────┘
+        """)
+        
+        # Create data for the about info
+        about_data = [
+            ["Version", "1.0.0"],
+            ["Codename", "TERMINAL GHOST"],
+            ["Developer", "NetScan Division"],
+            ["Features", "ARP scanning, port scanning, device discovery"],
+            ["Platform", platform.platform()],
+            ["Python", sys.version.split()[0]],
+            ["Date", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+            ["Status", "OPERATIONAL"]
+        ]
+        
+        # Display information as a retro table
+        terminal.hacker_table("SYSTEM INFORMATION", ["Item", "Details"], about_data)
+        
+        # Show disclaimer with consistent styling
+        time.sleep(0.3)
+        terminal.info("\n[DISCLAIMER]")
+        terminal.warning("This tool is for authorized network diagnostics and security assessment only.")
+                          
+        # Wait for user input to continue
+        terminal.info("\nPress any key to return to main interface...")
+        input()
+        terminal.clear_screen()
     
     def _start_scan(self, target=None):
         """Start a network scan in a separate thread"""
@@ -210,35 +279,180 @@ class NetScanConsole:
         self.scanning_thread.daemon = True
         self.scanning_thread.start()
     
-    def _run_scan(self, target_network=None):
+    def _run_scan(self, target=None):
         """Run network scan in a separate thread"""
         if not self.scanner:
-            terminal.warning("Scanner module not initialized!")
+            terminal.warning("ERROR: Scanner module not initialized!")
             return
-        
-        try:
-            # Display scanning message
-            if target_network:
-                terminal.info(f"Starting intensive scan on {target_network}...")
-                # Use our new intensive scanner method for specific networks
-                devices = self.scanner.scan_specific_network(target_network)
-            else:
-                terminal.info("Starting network scan on all interfaces...")
-                # Use regular scanner for all networks
-                devices = self.scanner.scan_network()
             
-            # Report on scan results
-            device_count = len(devices)
-            if device_count > 0:
-                terminal.success(f"Scan complete. Discovered {device_count} devices.")
+        try:
+            # Display scan header with cyber effect
+            terminal.clear_screen()
+            terminal.success("INITIATING NETWORK SCAN")
+            
+            # Show scan parameters
+            if target:
+                terminal.info(f"Target: {target}")
+            else:
+                terminal.info("Target: All available networks")
+            
+            # Display scanner ASCII art
+            terminal.show_scanner_progress(text="INITIALIZING SCAN...", progress=10)
+            time.sleep(0.5)
+            
+            # Run actual scan
+            if target:
+                # Parse target - could be IP or subnet
+                if '/' in target:
+                    # Subnet scan
+                    terminal.info(f"Scanning subnet: {target}")
+                    terminal.show_scanner_progress(text=f"SCANNING {target}...", progress=30)
+                    devices = self.scanner.scan_specific_network(target)
+                else:
+                    # Single IP scan
+                    terminal.info(f"Scanning device: {target}")
+                    terminal.show_scanner_progress(text=f"SCANNING {target}...", progress=30)
+                    devices = self.scanner.scan_single_ip(target)
+            else:
+                # Default scan - use auto-detection
+                terminal.info("Starting network discovery...")
+                terminal.show_scanner_progress(text="NETWORK DISCOVERY...", progress=50)
+                devices = self.scanner.smart_scan()
+                
+            # Update scan progress
+            terminal.show_scanner_progress(text="ANALYZING RESULTS...", progress=90)
+            time.sleep(0.3)
+            
+            # Complete scan
+            terminal.show_scanner_progress(text="SCAN COMPLETE", progress=100)
+            time.sleep(0.5)
+            
+            if devices:
+                terminal.success(f"Scan complete! Found {len(devices)} devices.")
+                self.discovered_devices = devices
+                self._show_devices()
             else:
                 terminal.warning("Scan complete. No devices found.")
-            
-            # Store scan time
-            self.last_scan_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+        except KeyboardInterrupt:
+            terminal.warning("Scan interrupted by user!")
             
         except Exception as e:
-            terminal.error(f"Scan error: {str(e)}")
+            terminal.error(f"Error during scan: {str(e)}")
+    
+    def _scan_all_subnets(self):
+        """Scan all active subnets"""
+        if not self.scanner:
+            terminal.warning("ERROR: Scanner module not initialized!")
+            return
+            
+        # Start scan in a separate thread so we don't block the console
+        if self.scanning_thread and self.scanning_thread.is_alive():
+            terminal.info("A scan is already running...")
+            return
+        
+        self.scanning_thread = threading.Thread(target=self._run_scan_all_subnets)
+        self.scanning_thread.daemon = True
+        self.scanning_thread.start()
+    
+    def _run_scan_all_subnets(self):
+        """Run network scan on all active subnets in a separate thread"""
+        if not self.scanner:
+            terminal.warning("ERROR: Scanner module not initialized!")
+            return
+            
+        try:
+            # Display scan header with cyber effect
+            terminal.clear_screen()
+            terminal.success("INITIATING COMPREHENSIVE NETWORK SCAN")
+            
+            # Flag to track scanning status
+            self.scanner.continue_scan = True
+            
+            # Discovery phase
+            terminal.info("Starting intelligent subnet discovery...")
+            terminal.info("This will automatically find and scan all likely networks...")
+            
+            # First use our new smart subnet discovery to identify all possible subnets
+            subnets_list = self.scanner.smart_subnet_discovery()
+            
+            if not subnets_list:
+                terminal.warning("No subnets discovered. Try running with elevated privileges.")
+                return
+                
+            # Show discovered subnets in a table
+            subnet_rows = []
+            for i, subnet in enumerate(subnets_list):
+                subnet_rows.append([
+                    str(i+1),
+                    subnet['network'],
+                    subnet['source'],
+                    subnet['type'].upper()
+                ])
+                
+            terminal.hacker_table(
+                "DISCOVERED SUBNETS", 
+                ["#", "Network", "Source", "Type"], 
+                subnet_rows
+            )
+            
+            # Filter to only include discovered (not brute-forced) and common subnets
+            scan_subnets = [s for s in subnets_list if s['type'] in ['local', 'route', 'gateway', 'arp', 'common']]
+            
+            terminal.info(f"Scanning {len(scan_subnets)} most likely subnets...")
+            
+            # Use our organized subnet scanning method to scan selected subnets
+            self.discovered_devices = self.scanner.scan_selected_subnets(scan_subnets, max_concurrent=2)
+            
+            terminal.info("Scan analysis complete")
+            
+            if self.discovered_devices:
+                terminal.success(f"Scan complete! Found {len(self.discovered_devices)} devices across all subnets.")
+                
+                # Show the skull for dramatic effect
+                terminal.show_skull()
+                terminal.success(f"IDENTIFIED {len(self.discovered_devices)} NETWORK NODES")
+                
+                # Display devices
+                self._show_devices()
+                
+                # Automatically export the results
+                timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                export_filename = f"netscan_results_{timestamp}.json"
+                export_path = self.scanner.export_data_to_json(export_filename)
+                if export_path:
+                    terminal.success(f"Results automatically exported to: {export_path}")
+            else:
+                terminal.warning("Scan complete. No devices found on any subnet.")
+                
+        except KeyboardInterrupt:
+            # Handle user interruption
+            terminal.warning("Scan interrupted by user!")
+            if hasattr(self.scanner, 'continue_scan'):
+                self.scanner.continue_scan = False
+            
+        except Exception as e:
+            terminal.error(f"Error during scan: {str(e)}")
+            if hasattr(self.scanner, 'continue_scan'):
+                self.scanner.continue_scan = False
+
+    def _show_subnets(self):
+        """Show available subnets for scanning"""
+        if not self.scanner:
+            terminal.warning("ERROR: Scanner module not initialized!")
+            return
+            
+        # Use the new active subnet discovery method
+        subnets = self.scanner.show_active_subnets()
+        
+        if not subnets:
+            terminal.info("No active subnets found. Try running with elevated privileges (sudo).")
+            return
+            
+        # Add instructions for using the subnets
+        terminal.info("\nTo scan a specific subnet, use: scan <subnet>")
+        terminal.info("Example: scan 10.42.1.0/24")
+        terminal.info("To scan all subnets automatically, use: scanall")
     
     def _show_devices(self):
         """Display discovered devices"""
@@ -246,29 +460,44 @@ class NetScanConsole:
             terminal.warning("ERROR: Scanner module not initialized!")
             return
             
+        # Get devices from both the scanner's results and our multi-threaded scan results
         devices = self.scanner.get_scan_results()
         
+        # If we have discovered devices from the multi-threaded scan, use those too
+        if hasattr(self, 'discovered_devices') and self.discovered_devices:
+            # Combine the results, avoiding duplicates by IP
+            existing_ips = {d.get('ip') for d in devices}
+            for device in self.discovered_devices:
+                if device.get('ip') not in existing_ips:
+                    devices.append(device)
+                    existing_ips.add(device.get('ip'))
+        
         if not devices:
-            terminal.info("No devices found. Run 'scan' first.")
+            terminal.info("No devices found. Run 'scan' or 'scanall' first.")
             return
+        
+        # Show skull ASCII art and device count with glitch effect
+        terminal.show_skull()
+        terminal.success(f"FOUND {len(devices)} NETWORK NODES")
             
         # Create a table for displaying the devices
-        table = Table(title="Discovered Devices", box=HEAVY)
-        table.add_column("IP Address", style="cyan")
-        table.add_column("Hostname", style="green")
-        table.add_column("MAC Address", style="yellow")
-        table.add_column("Vendor", style="magenta")
+        column_titles = ["IP Address", "Hostname", "MAC Address", "Vendor"]
+        rows = []
         
         # Add device rows
         for device in devices:
-            table.add_row(
+            rows.append([
                 device.get('ip', 'Unknown'),
                 device.get('hostname', 'Unknown'),
                 device.get('mac', 'Unknown'),
                 device.get('vendor', 'Unknown')
-            )
+            ])
         
-        self.console.print(table)
+        # Display stylized table
+        terminal.hacker_table("DISCOVERED DEVICES", column_titles, rows)
+        
+        # Show network ASCII art at the bottom
+        terminal.show_network_art()
     
     def _show_interfaces(self):
         """Display network interfaces"""
@@ -431,7 +660,7 @@ class NetScanConsole:
             
         # Generate default filename if not provided
         if not filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             filename = f"netscan_results_{timestamp}.json"
             
         # Get absolute path for the file

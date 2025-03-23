@@ -78,8 +78,8 @@ def simulate_loading():
 def main():
     """Main entry point for the application"""
     try:
-        # First run the hacker-style loading sequence
-        simulate_loading()
+        # Skip the loading sequence as requested
+        # simulate_loading()
         
         # Initialize scanner
         terminal.info("[TRACE] Initializing scanner...")

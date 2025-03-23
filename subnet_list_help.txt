@@ -1,0 +1,43 @@
+# NetScan Subnet List Feature Guide
+
+The new subnet list functionality allows you to discover and scan multiple networks from a single command.
+
+## How to Use the Subnet List Feature
+
+1. Run the application with sudo (required for network operations):
+   ```
+   sudo python3 main.py
+   ```
+
+2. From the NetScan prompt, use the `subnets` command:
+   ```
+   ┌──[NetScan]─[~]
+   └─$ subnets
+   ```
+
+3. You'll see a list of available subnets organized by:
+   - Local subnets (from your interfaces) - highlighted in GREEN
+   - Special networks (like 10.42.1.0/24) - highlighted in YELLOW
+   - Common private ranges - displayed in CYAN
+
+4. To scan a specific subnet, use:
+   ```
+   ┌──[NetScan]─[~]
+   └─$ scan 10.42.1.0/24
+   ```
+
+5. To interrupt a scan in progress, press Ctrl+C.
+
+## Special Features:
+
+- **Batch Processing**: The scanner now processes IPs in batches for better performance
+- **Progressive Scanning**: Uses multiple scanning techniques to find hard-to-detect devices
+- **Interrupt Handling**: Scans can be stopped at any time with Ctrl+C
+- **Smart Network Detection**: Prioritizes local networks but includes common private ranges
+
+## The subnets command provides:
+- Network CIDR notation (e.g., 10.42.1.0/24)
+- Source of the network (interface, common range, or special network)
+- Color coding for different network types
+
+This feature helps efficiently discover devices across multiple networks without having to manually specify each network range.

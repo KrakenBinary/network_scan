@@ -27,6 +27,9 @@ wheels/
 
 # Scan results
 results/
+netscan_results_*.json
+*_scan_results.json
+*.json.tmp
 
 # Sensitive information & API keys
 .env
